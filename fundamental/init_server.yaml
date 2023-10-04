@@ -1,0 +1,38 @@
+---
+- name: Playbook setup web server
+  hosts: all
+  become: true
+  gather_facts: true #save server information
+  vars:
+    ansible_user: root
+    new_user: reiya24
+  tasks:
+
+    - name: Parsing variable dari secret file
+      ansible.builtin.include_vars:
+        file: vault.yaml
+
+    - name: Create User {{ new_user }}
+      ansible.builtin.user:
+        name: "{{ new_user }}"
+        password: "{{ user_pass | password_hash('sha512') }}"
+        shell: /bin/bash
+        groups: wheel
+
+    - name: Set authorized key for User {{ new_user }}
+      ansible.posix.authorized_key:
+        user: reiya24
+        state: present
+        key: "{{ lookup('file', '/home/reiya24/.ssh/id_rsa.pub') }}"
+
+    - name: Upgrade System (Debian Familly)
+      ansible.builtin.apt:
+        upgrade: full
+        update_cache: true
+      when:
+        - ansible_os_family == "Debian"
+
+    - name: Upgrade System (RHEL Family)
+      yum:
+        name: '*'
+      when: ansible_os_family == "RedHat"
